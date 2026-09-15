@@ -415,7 +415,7 @@ class FakeSatelliteTester:
         except KeyboardInterrupt:
             print("\n\nTests interrupted by user")
         
-        self._print_summary()
+        return self._print_summary()
     
     def _print_summary(self):
         """Print test summary."""

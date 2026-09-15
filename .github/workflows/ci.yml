@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build container image
+        run: docker build -f Containerfile -t fake-satellite:ci .
+
+      - name: Start fake-satellite container
+        run: |
+          docker run -d \
+            --name fake-satellite \
+            --publish 8080:8080 \
+            fake-satellite:ci
+
+      - name: Wait for API to become ready
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:8080/api/status > /dev/null; then
+              echo "API is ready"
+              exit 0
+            fi
+            echo "Waiting for API... (${attempt}/30)"
+            sleep 2
+          done
+          echo "API did not become ready in time"
+          docker logs fake-satellite
+          exit 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install test dependencies
+        run: pip install requests
+
+      - name: Run endpoint test suite
+        run: python tests/test_endpoints.py --url http://localhost:8080
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: docker logs fake-satellite
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f fake-satellite
