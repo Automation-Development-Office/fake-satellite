@@ -60,6 +60,13 @@ RESOURCE_DEFAULTS: dict[str, dict[str, Any]] = {
         "description": "",
         "label": None,
     },
+    "content_view_versions": {
+        "description": "",
+        "version": "0.0",
+        "environments": [],
+        "package_count": 0,
+        "errata_count": 0,
+    },
 }
 
 
@@ -68,7 +75,15 @@ def enrich_resource(resource: str, record: dict[str, Any]) -> dict[str, Any]:
     for key, value in defaults.items():
         record.setdefault(key, value)
 
-    if resource in ("content_views", "products", "repositories", "activation_keys", "lifecycle_environments", "environments"):
+    if resource in (
+        "content_views",
+        "content_view_versions",
+        "products",
+        "repositories",
+        "activation_keys",
+        "lifecycle_environments",
+        "environments",
+    ):
         if record.get("label") is None and record.get("name"):
             record["label"] = _slugify_label(record["name"])
 

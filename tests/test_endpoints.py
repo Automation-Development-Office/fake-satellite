@@ -120,6 +120,7 @@ class FakeSatelliteTester:
             ("/katello/api/environments", "Environments"),
             ("/katello/api/lifecycle_environments", "Lifecycle Environments"),
             ("/katello/api/content_views", "Content Views"),
+            ("/katello/api/content_view_versions", "Content View Versions"),
             ("/katello/api/activation_keys", "Activation Keys"),
         ]
         
@@ -205,6 +206,48 @@ class FakeSatelliteTester:
         self.passed += 2
         print("  ✓ [200] Content view includes Katello fields")
         print("  ✓ [201] Created content view includes composite")
+
+    def test_content_view_publish(self):
+        """Content view publish should create a version for Ansible modules."""
+        print("\n" + "=" * 70)
+        print("CONTENT VIEW PUBLISH")
+        print("=" * 70)
+
+        publish_response = requests.post(
+            f"{self.base_url}/katello/api/content_views/1/publish",
+            json={},
+            timeout=5,
+        )
+        if publish_response.status_code != 200:
+            self.failed += 1
+            print(f"  ✗ [{publish_response.status_code}] Publish content view")
+            return
+
+        payload = publish_response.json()
+        version_id = payload.get("output", {}).get("content_view_version_id")
+        if not version_id:
+            self.failed += 1
+            print("  ✗ Publish response missing content_view_version_id")
+            return
+
+        version_response = requests.get(
+            f"{self.base_url}/katello/api/content_view_versions/{version_id}",
+            timeout=5,
+        )
+        if version_response.status_code != 200:
+            self.failed += 1
+            print(f"  ✗ [{version_response.status_code}] Show published content view version")
+            return
+
+        version = version_response.json()
+        if version.get("version") != "1.0":
+            self.failed += 1
+            print(f"  ✗ Unexpected published version: {version.get('version')}")
+            return
+
+        self.passed += 2
+        print("  ✓ [200] Publish content view")
+        print("  ✓ [200] Published content view version is readable")
 
     def test_create_resources(self):
         """Test POST (create) endpoints."""
@@ -492,6 +535,7 @@ class FakeSatelliteTester:
         try:
             self.test_health_checks()
             self.test_katello_content_view_fields()
+            self.test_content_view_publish()
             self.test_list_endpoints()
             self.test_get_by_id()
             self.test_create_resources()

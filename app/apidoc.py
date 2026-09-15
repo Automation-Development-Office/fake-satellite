@@ -36,6 +36,7 @@ FOREMAN_RESOURCES = (
 KATELLO_RESOURCES = (
     "lifecycle_environments",
     "content_views",
+    "content_view_versions",
     "activation_keys",
     "repositories",
     "products",
@@ -63,6 +64,7 @@ SINGULAR_NAMES = {
     "tasks": "task",
     "lifecycle_environments": "lifecycle_environment",
     "content_views": "content_view",
+    "content_view_versions": "content_view_version",
     "activation_keys": "activation_key",
     "repositories": "repository",
     "products": "product",
@@ -201,6 +203,39 @@ def _crud_methods(resource: str, base_path: str) -> list[dict[str, Any]]:
                 _param("location_id", expected_type="numeric"),
                 _param("organization_id", expected_type="numeric"),
             ]
+        )
+
+    if resource == "content_views":
+        methods.append(
+            _method(
+                "publish",
+                f"{base_path}/:id/publish",
+                "POST",
+                [
+                    _id_param(),
+                    _param("description"),
+                    _param("force_yum_metadata_regeneration", expected_type="boolean"),
+                    _param("major", expected_type="numeric"),
+                    _param("minor", expected_type="numeric"),
+                ],
+                "Publish a content view",
+            )
+        )
+
+    if resource == "content_view_versions":
+        methods.append(
+            _method(
+                "promote",
+                f"{base_path}/:id/promote",
+                "POST",
+                [
+                    _id_param(),
+                    _param("environment_ids", expected_type="array"),
+                    _param("force", expected_type="boolean"),
+                    _param("force_yum_metadata_regeneration", expected_type="boolean"),
+                ],
+                "Promote a content view version",
+            )
         )
 
     if resource == "repositories":

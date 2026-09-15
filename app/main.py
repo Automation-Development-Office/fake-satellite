@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.apidoc import build_apidoc
+from app.katello import next_content_view_version, publish_response
 from app.resource_defaults import enrich_resource
 
 
@@ -76,6 +77,7 @@ RESOURCE_TABLES = {
     # Katello - Content Management
     "lifecycle_environments": "lifecycle_environments",
     "content_views": "content_views",
+    "content_view_versions": "content_view_versions",
     "activation_keys": "activation_keys",
     "repositories": "repositories",
     "products": "products",
@@ -247,10 +249,44 @@ def singular_resource_name(resource):
         "hosts": "host",
         "lifecycle_environments": "lifecycle_environment",
         "content_views": "content_view",
+        "content_view_versions": "content_view_version",
         "activation_keys": "activation_key",
     }
 
     return names.get(resource, resource.rstrip("s"))
+
+
+def matches_filters(resource_dict: dict, filters: dict) -> bool:
+    for key, value in filters.items():
+        if value in (None, ""):
+            continue
+
+        if key == "environment_id":
+            environments = resource_dict.get("environments", [])
+            env_ids = {
+                env["id"] if isinstance(env, dict) else env
+                for env in environments
+            }
+            if int(value) not in env_ids:
+                return False
+            continue
+
+        actual = resource_dict.get(key)
+        if actual is None:
+            return False
+        if str(actual) != str(value):
+            return False
+
+    return True
+
+
+def query_params_to_filters(query_params) -> dict:
+    reserved = {"search", "page", "per_page", "thin"}
+    return {
+        key: value
+        for key, value in query_params.items()
+        if key not in reserved
+    }
 
 def matches_search(resource: dict, search: str | None):
     conditions = parse_search(search)
@@ -278,7 +314,7 @@ def matches_search(resource: dict, search: str | None):
     return True
 
 
-def list_resources(resource, search=None, page=1, per_page=20):
+def list_resources(resource, search=None, page=1, per_page=20, filters=None):
     table = RESOURCE_TABLES[resource]
 
     conn = get_connection()
@@ -292,8 +328,11 @@ def list_resources(resource, search=None, page=1, per_page=20):
     results = []
     for row in rows:
         record = row_to_dict(row, resource)
-        if matches_search(record, search):
-            results.append(record)
+        if not matches_search(record, search):
+            continue
+        if filters and not matches_filters(record, filters):
+            continue
+        results.append(record)
 
     total = len(results)
 
@@ -545,6 +584,7 @@ def make_routes(prefix, resource):
 
     @app.get(route)
     def list_endpoint(
+        request: Request,
         search: str | None = None,
         page: int = 1,
         per_page: int = 20,
@@ -554,6 +594,7 @@ def make_routes(prefix, resource):
             search,
             page,
             per_page,
+            query_params_to_filters(request.query_params),
         )
 
     @app.get(f"{route}/{{resource_id}}")
@@ -663,6 +704,11 @@ make_routes(
 
 make_routes(
     "/katello/api",
+    "content_view_versions",
+)
+
+make_routes(
+    "/katello/api",
     "activation_keys",
 )
 
@@ -763,6 +809,86 @@ def add_host_to_location(location_id: int, host_id: int):
     update_resource("hosts", host_id, {"location_id": location_id})
     
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Content view publish / promote endpoints
+# ---------------------------------------------------------------------------
+
+async def _json_body(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        body = {}
+    return body if isinstance(body, dict) else {}
+
+
+@app.post("/katello/api/content_views/{content_view_id}/publish")
+async def publish_content_view(content_view_id: int, request: Request):
+    """Publish a content view and create a new content view version."""
+    body = await _json_body(request)
+
+    content_view = get_resource("content_views", content_view_id)
+    existing_versions = list_resources(
+        "content_view_versions",
+        filters={"content_view_id": content_view_id},
+    )["results"]
+
+    major = body.get("major")
+    minor = body.get("minor")
+    major, minor, version = next_content_view_version(
+        existing_versions,
+        major,
+        minor,
+    )
+
+    content_view_version = create_resource(
+        "content_view_versions",
+        {
+            "name": f"{content_view['name']} {version}",
+            "content_view_id": content_view_id,
+            "organization_id": content_view.get("organization_id"),
+            "version": version,
+            "major": major,
+            "minor": minor,
+            "description": body.get("description", ""),
+            "environments": [],
+        },
+    )
+
+    return publish_response(content_view_version["id"])
+
+
+@app.post("/katello/api/content_view_versions/{version_id}/promote")
+async def promote_content_view_version(version_id: int, request: Request):
+    """Promote a content view version to lifecycle environments."""
+    body = await _json_body(request)
+
+    content_view_version = get_resource("content_view_versions", version_id)
+    environment_ids = body.get("environment_ids", [])
+    environments = list(content_view_version.get("environments", []))
+    existing_ids = {
+        env["id"] if isinstance(env, dict) else env
+        for env in environments
+    }
+
+    for environment_id in environment_ids:
+        if environment_id in existing_ids:
+            continue
+        environment = get_resource("lifecycle_environments", environment_id)
+        environments.append(
+            {
+                "id": environment["id"],
+                "name": environment["name"],
+            }
+        )
+        existing_ids.add(environment_id)
+
+    return update_resource(
+        "content_view_versions",
+        version_id,
+        {"environments": environments},
+    )
 
 
 # ---------------------------------------------------------------------------
