@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.apidoc import build_apidoc
-from app.katello import next_content_view_version, publish_response
+from app.katello import next_content_view_version, promote_response, publish_response
 from app.resource_defaults import enrich_resource
 
 
@@ -86,6 +86,16 @@ RESOURCE_TABLES = {
     "tasks": "tasks",
 }
 
+ORG_SCOPED_RESOURCES = {
+    "lifecycle_environments",
+    "content_views",
+    "content_view_versions",
+    "products",
+    "repositories",
+    "activation_keys",
+    "environments",
+}
+
 
 def get_connection():
     Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
@@ -93,6 +103,14 @@ def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def storage_name(resource: str, payload: dict) -> str:
+    name = payload.get("name")
+    organization_id = payload.get("organization_id")
+    if resource in ORG_SCOPED_RESOURCES and organization_id is not None:
+        return f"{organization_id}::{name}"
+    return name
 
 
 def init_db():
@@ -138,9 +156,10 @@ def load_seed():
             if not name:
                 continue
 
+            record_key = storage_name(resource, {"name": name, **record})
             exists = conn.execute(
                 f"SELECT id FROM {table} WHERE name = ?",
-                (name,),
+                (record_key,),
             ).fetchone()
 
             if exists:
@@ -153,7 +172,7 @@ def load_seed():
                 """,
                 (
                     record_id,
-                    name,
+                    record_key,
                     json.dumps(record),
                 ),
             )
@@ -384,9 +403,10 @@ def create_resource(resource, payload):
             detail="name is required",
         )
 
+    record_key = storage_name(resource, {"name": name, **payload})
     existing = conn.execute(
         f"SELECT * FROM {table} WHERE name = ?",
-        (name,),
+        (record_key,),
     ).fetchone()
 
     if existing:
@@ -409,7 +429,7 @@ def create_resource(resource, payload):
         """,
         (
             record_id,
-            name,
+            record_key,
             json.dumps(payload),
         ),
     )
@@ -453,6 +473,7 @@ def update_resource(resource, resource_id, payload):
     data.pop("id", None)
     data.pop("title", None)
 
+    record_key = storage_name(resource, {"name": name, **data})
     conn.execute(
         f"""
         UPDATE {table}
@@ -460,7 +481,7 @@ def update_resource(resource, resource_id, payload):
         WHERE id = ?
         """,
         (
-            name,
+            record_key,
             json.dumps(data),
             resource_id,
         ),
@@ -873,6 +894,7 @@ async def promote_content_view_version(version_id: int, request: Request):
     }
 
     for environment_id in environment_ids:
+        environment_id = int(environment_id)
         if environment_id in existing_ids:
             continue
         environment = get_resource("lifecycle_environments", environment_id)
@@ -884,11 +906,13 @@ async def promote_content_view_version(version_id: int, request: Request):
         )
         existing_ids.add(environment_id)
 
-    return update_resource(
+    updated_version = update_resource(
         "content_view_versions",
         version_id,
         {"environments": environments},
     )
+
+    return promote_response(updated_version)
 
 
 # ---------------------------------------------------------------------------

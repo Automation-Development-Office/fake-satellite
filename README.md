@@ -224,6 +224,12 @@ curl -X POST http://localhost:8080/api/domains \
 
 # Sync a repository
 curl -X POST http://localhost:8080/katello/api/repositories/1/sync
+
+# Publish and promote a content view
+curl -X POST http://localhost:8080/katello/api/content_views/1/publish -H 'Content-Type: application/json' -d '{}'
+curl -X POST http://localhost:8080/katello/api/content_view_versions/1/promote \
+  -H 'Content-Type: application/json' \
+  -d '{"environment_ids":[2],"force":false,"force_yum_metadata_regeneration":false}'
 ```
 
 Search and pagination follow a subset of Foreman search syntax:

@@ -46,3 +46,12 @@
     - name: Show content views returned by the API
       ansible.builtin.debug:
         msg: "{{ content_views.content_views | map(attribute='name') | list }}"
+
+    - name: Publish content view and promote to Development
+      redhat.satellite.content_view_version:
+        <<: *satellite_common_args
+        organization: "{{ fake_satellite_organization }}"
+        content_view: RHEL8_Base
+        lifecycle_environments:
+          - Development
+        state: present

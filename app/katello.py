@@ -39,3 +39,13 @@ def publish_response(content_view_version_id: int) -> dict[str, Any]:
         "input": {"content_view_version_id": content_view_version_id},
         "output": {"content_view_version_id": content_view_version_id},
     }
+
+
+def promote_response(content_view_version: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": content_view_version["id"],
+        "action": "Actions::Katello::ContentView::Promote",
+        "state": "stopped",
+        "result": "success",
+        "environments": content_view_version.get("environments", []),
+    }

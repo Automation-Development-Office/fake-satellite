@@ -40,6 +40,7 @@ ansible-playbook -i inventory.yml site.yml \
 2. Creates a domain named `lab.example.com`
 3. Creates a content view named `RHEL8_Base` in the `Engineering` organization
 4. Lists content views and prints their names
+5. Publishes `RHEL8_Base` and promotes it to the `Development` lifecycle environment
 
 Connection settings live in `group_vars/all.yml`. The default organization matches seed data in `seed/satellite.yml`.
 

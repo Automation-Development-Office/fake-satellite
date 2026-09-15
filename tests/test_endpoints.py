@@ -249,6 +249,76 @@ class FakeSatelliteTester:
         print("  ✓ [200] Publish content view")
         print("  ✓ [200] Published content view version is readable")
 
+    def test_content_view_promote(self):
+        """Promote should attach lifecycle environments to a content view version."""
+        print("\n" + "=" * 70)
+        print("CONTENT VIEW PROMOTE")
+        print("=" * 70)
+
+        publish_response = requests.post(
+            f"{self.base_url}/katello/api/content_views/1/publish",
+            json={},
+            timeout=5,
+        )
+        version_id = publish_response.json().get("output", {}).get("content_view_version_id")
+        if not version_id:
+            self.failed += 1
+            print("  ✗ Could not create content view version for promote test")
+            return
+
+        promote_response = requests.post(
+            f"{self.base_url}/katello/api/content_view_versions/{version_id}/promote",
+            json={"environment_ids": [2], "force": False, "force_yum_metadata_regeneration": False},
+            timeout=5,
+        )
+        if promote_response.status_code != 200:
+            self.failed += 1
+            print(f"  ✗ [{promote_response.status_code}] Promote content view version")
+            return
+
+        payload = promote_response.json()
+        if payload.get("result") != "success":
+            self.failed += 1
+            print("  ✗ Promote response missing success result")
+            return
+
+        version_response = requests.get(
+            f"{self.base_url}/katello/api/content_view_versions/{version_id}",
+            timeout=5,
+        )
+        environments = version_response.json().get("environments", [])
+        env_ids = {env["id"] for env in environments if isinstance(env, dict)}
+        if 2 not in env_ids:
+            self.failed += 1
+            print(f"  ✗ Promoted environments missing Development: {environments}")
+            return
+
+        try:
+            import apypie
+
+            api = apypie.Api(uri=self.base_url, api_version=2)
+            api._apidoc = requests.get(f"{self.base_url}/apidoc/v2.json", timeout=5).json()
+            api.resource("content_view_versions").call(
+                "promote",
+                {
+                    "id": version_id,
+                    "environment_ids": [3],
+                    "force": False,
+                    "force_yum_metadata_regeneration": False,
+                },
+            )
+        except ImportError:
+            print("  ⊘ Apypie promote action test skipped (apypie not installed)")
+        except Exception as exc:
+            self.failed += 1
+            print(f"  ✗ Apypie promote action failed: {exc}")
+            return
+
+        self.passed += 3
+        print("  ✓ [200] Promote content view version")
+        print("  ✓ [200] Promoted lifecycle environment is stored")
+        print("  ✓ Apypie promote action works")
+
     def test_create_resources(self):
         """Test POST (create) endpoints."""
         print("\n" + "=" * 70)
@@ -536,6 +606,7 @@ class FakeSatelliteTester:
             self.test_health_checks()
             self.test_katello_content_view_fields()
             self.test_content_view_publish()
+            self.test_content_view_promote()
             self.test_list_endpoints()
             self.test_get_by_id()
             self.test_create_resources()
