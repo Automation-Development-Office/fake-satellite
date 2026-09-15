@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.apidoc import build_apidoc
+from app.compatibility import apply_read_aliases, normalize_write_payload
 from app.katello import next_content_view_version, promote_response, publish_response
 from app.resource_defaults import enrich_resource
 
@@ -202,6 +203,7 @@ def row_to_dict(row, resource: str | None = None):
 
     if resource is not None:
         result = enrich_resource(resource, result)
+        result = apply_read_aliases(resource, result)
 
     return result
 
@@ -650,7 +652,7 @@ def make_routes(prefix, resource):
 
         return create_resource(
             resource,
-            dict(payload),
+            normalize_write_payload(resource, dict(payload)),
         )
 
 
@@ -675,7 +677,7 @@ def make_routes(prefix, resource):
         return update_resource(
             resource,
             resource_id,
-            dict(payload),
+            normalize_write_payload(resource, dict(payload)),
         )
 
     @app.delete(f"{route}/{{resource_id}}")

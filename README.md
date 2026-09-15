@@ -258,6 +258,28 @@ Containerfile     Container image definition
 - **CI** (`.github/workflows/ci.yml`): builds the container image, starts it, and runs `tests/test_endpoints.py` on pushes and pull requests to `main`.
 - **Release** (`.github/workflows/release.yml`): runs tests, then builds and pushes the image to `ghcr.io/automation-development-office/fake-satellite` when a GitHub release is published.
 
+## Compatibility with redhat.satellite versions
+
+Fake-satellite accepts both legacy and current Foreman/Katello API field names so older playbooks and newer collection releases can share the same image.
+
+| Resource | Legacy / alternate field | Current field |
+|----------|--------------------------|---------------|
+| `organizations`, `locations` | `select_all_types` | `ignore_types` |
+| `domains` | `fullname` | `description` |
+| `operatingsystems` | `family` | `os_family` |
+| `activation_keys` | `environment_id` | `lifecycle_environment_id` |
+| `subnets` | `from_ip`, `to_ip` | `from`, `to` |
+
+The example playbook in `examples/ansible/` also defines legacy role variables such as `satellite_server_url`, `satellite_organization`, and `foreman_*` aliases alongside the `fake_satellite_*` names.
+
+Collection module renames such as `katello_content_view` → `content_view` are handled by the collection itself via `plugin_routing`; fake-satellite implements the underlying API those modules call.
+
+Run compatibility tests:
+
+```bash
+python tests/test_compatibility.py --url http://localhost:8080
+```
+
 ## Limitations
 
 This is a fake API, not a full Satellite implementation.

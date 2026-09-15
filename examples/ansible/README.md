@@ -44,6 +44,8 @@ ansible-playbook -i inventory.yml site.yml \
 
 Connection settings live in `group_vars/all.yml`. The default organization matches seed data in `seed/satellite.yml`.
 
+The example vars include legacy aliases (`satellite_*`, `foreman_*`) so the same playbook works with older `redhat.satellite` roles that have not yet adopted the `fake_satellite_*` names.
+
 ## Troubleshooting
 
 If Ansible fails with an apidoc `TypeError`, rebuild the container and clear the apypie cache on the control node:

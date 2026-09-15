@@ -266,6 +266,44 @@ def _crud_methods(resource: str, base_path: str) -> list[dict[str, Any]]:
         for param_name in ("uuid", "errata_ids", "date_type", "module_stream_ids"):
             create["params"].append(_param(param_name))
 
+    if resource == "organizations":
+        for action_name in ("create", "update"):
+            action = next(method for method in methods if method["name"] == action_name)
+            action["params"].append(_param("ignore_types", expected_type="array"))
+            action["params"].append(_param("select_all_types", expected_type="array"))
+
+    if resource == "locations":
+        for action_name in ("create", "update"):
+            action = next(method for method in methods if method["name"] == action_name)
+            action["params"].append(_param("ignore_types", expected_type="array"))
+            action["params"].append(_param("select_all_types", expected_type="array"))
+
+    if resource == "domains":
+        for action_name in ("create", "update"):
+            action = next(method for method in methods if method["name"] == action_name)
+            domain_param = next(
+                param for param in action["params"]
+                if param["name"] == SINGULAR_NAMES[resource]
+            )
+            domain_param["params"].append(_param("fullname"))
+            domain_param["params"].append(_param("description"))
+
+    if resource == "operatingsystems":
+        for action_name in ("create", "update"):
+            action = next(method for method in methods if method["name"] == action_name)
+            os_param = next(
+                param for param in action["params"]
+                if param["name"] == SINGULAR_NAMES[resource]
+            )
+            os_param["params"].append(_param("family"))
+            os_param["params"].append(_param("os_family"))
+
+    if resource == "activation_keys":
+        for action_name in ("create", "update"):
+            action = next(method for method in methods if method["name"] == action_name)
+            action["params"].append(_param("environment_id", expected_type="numeric"))
+            action["params"].append(_param("lifecycle_environment_id", expected_type="numeric"))
+
     return methods
 
 

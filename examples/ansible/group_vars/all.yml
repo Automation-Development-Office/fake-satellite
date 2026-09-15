@@ -7,3 +7,15 @@ fake_satellite_validate_certs: false
 
 # Seed data includes this organization (see seed/satellite.yml).
 fake_satellite_organization: Engineering
+
+# Legacy variable names used by older redhat.satellite roles and playbooks.
+satellite_server_url: "{{ fake_satellite_server_url }}"
+satellite_username: "{{ fake_satellite_username }}"
+satellite_password: "{{ fake_satellite_password }}"
+satellite_validate_certs: "{{ fake_satellite_validate_certs }}"
+satellite_organization: "{{ fake_satellite_organization }}"
+foreman_server_url: "{{ fake_satellite_server_url }}"
+foreman_username: "{{ fake_satellite_username }}"
+foreman_password: "{{ fake_satellite_password }}"
+foreman_validate_certs: "{{ fake_satellite_validate_certs }}"
+foreman_organization: "{{ fake_satellite_organization }}"
