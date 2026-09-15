@@ -158,6 +158,54 @@ class FakeSatelliteTester:
                 description=f"Get {name} by ID"
             )
     
+    def test_katello_content_view_fields(self):
+        """Katello modules expect composite and related fields on content views."""
+        print("\n" + "=" * 70)
+        print("KATELLO CONTENT VIEW FIELDS")
+        print("=" * 70)
+
+        response = requests.get(f"{self.base_url}/katello/api/content_views/1", timeout=5)
+        if response.status_code != 200:
+            self.failed += 1
+            print(f"  ✗ [{response.status_code}] Get content view by ID")
+            return
+
+        content_view = response.json()
+        required_fields = (
+            "composite",
+            "auto_publish",
+            "environments",
+            "content_view_components",
+        )
+        missing = [field for field in required_fields if field not in content_view]
+        if missing:
+            self.failed += 1
+            print(f"  ✗ Content view missing fields: {', '.join(missing)}")
+            return
+
+        create_response = requests.post(
+            f"{self.base_url}/katello/api/content_views",
+            json={
+                "content_view": {
+                    "name": "Ansible Test CV",
+                    "organization_id": 2,
+                    "description": "Created by test suite",
+                }
+            },
+            timeout=5,
+        )
+        if create_response.status_code != 201 or "composite" not in create_response.json():
+            self.failed += 1
+            print(
+                f"  ✗ [{create_response.status_code}] Create content view "
+                f"(expected composite in response)"
+            )
+            return
+
+        self.passed += 2
+        print("  ✓ [200] Content view includes Katello fields")
+        print("  ✓ [201] Created content view includes composite")
+
     def test_create_resources(self):
         """Test POST (create) endpoints."""
         print("\n" + "=" * 70)
@@ -443,6 +491,7 @@ class FakeSatelliteTester:
         
         try:
             self.test_health_checks()
+            self.test_katello_content_view_fields()
             self.test_list_endpoints()
             self.test_get_by_id()
             self.test_create_resources()

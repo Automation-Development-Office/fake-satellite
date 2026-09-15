@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.apidoc import build_apidoc
+from app.resource_defaults import enrich_resource
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +164,7 @@ def load_seed():
 # Helpers
 # ---------------------------------------------------------------------------
 
-def row_to_dict(row):
+def row_to_dict(row, resource: str | None = None):
     if row is None:
         return None
 
@@ -177,6 +178,9 @@ def row_to_dict(row):
     # Foreman commonly exposes title as well as name.
     if "title" not in result:
         result["title"] = result.get("name")
+
+    if resource is not None:
+        result = enrich_resource(resource, result)
 
     return result
 
@@ -285,11 +289,11 @@ def list_resources(resource, search=None, page=1, per_page=20):
 
     conn.close()
 
-    results = [
-        row_to_dict(row)
-        for row in rows
-        if matches_search(row_to_dict(row), search)
-    ]
+    results = []
+    for row in rows:
+        record = row_to_dict(row, resource)
+        if matches_search(record, search):
+            results.append(record)
 
     total = len(results)
 
@@ -325,7 +329,7 @@ def get_resource(resource, resource_id):
             detail=f"{resource} {resource_id} not found",
         )
 
-    return row_to_dict(row)
+    return row_to_dict(row, resource)
 
 
 def create_resource(resource, payload):
@@ -380,7 +384,7 @@ def create_resource(resource, payload):
 
     conn.close()
 
-    return row_to_dict(row)
+    return row_to_dict(row, resource)
 
 
 def update_resource(resource, resource_id, payload):
@@ -401,7 +405,7 @@ def update_resource(resource, resource_id, payload):
             detail=f"{resource} {resource_id} not found",
         )
 
-    current = row_to_dict(existing)
+    current = row_to_dict(existing, resource)
     current.update(payload)
 
     name = current.get("name")
@@ -432,7 +436,7 @@ def update_resource(resource, resource_id, payload):
 
     conn.close()
 
-    return row_to_dict(row)
+    return row_to_dict(row, resource)
 
 
 def delete_resource(resource, resource_id):

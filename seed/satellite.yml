@@ -242,11 +242,19 @@ content_views:
     title: Base Content View
     organization_id: 1
     description: Base content view with core packages
+    composite: false
+    auto_publish: false
+    environments: []
+    content_view_components: []
   - id: 2
     name: Web Server CV
     title: Web Server Content View
     organization_id: 1
     description: Content view for web servers
+    composite: false
+    auto_publish: false
+    environments: []
+    content_view_components: []
 
 products:
   - id: 1
