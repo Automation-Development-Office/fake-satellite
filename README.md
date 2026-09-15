@@ -121,6 +121,14 @@ See [tests/README.md](tests/README.md) for details on what the test suite covers
 
 ## Using with Ansible
 
+A full example playbook lives in [examples/ansible/](examples/ansible/). Install the collection and run it against a local container:
+
+```bash
+cd examples/ansible
+ansible-galaxy collection install -r requirements.yml
+ansible-playbook -i inventory.yml site.yml
+```
+
 Point the `redhat.satellite` collection at this service using `server_url` and any credentials your playbook expects. The fake API does not enforce authentication, but modules still require username/password parameters.
 
 Example:
@@ -145,13 +153,47 @@ Example playbook task to create a domain:
     state: present
 ```
 
-If Ansible fails after upgrading fake-satellite, clear cached API documentation on the control node:
+The service serves Apipie-compatible documentation at `/apidoc/v2.json`, which Ansible uses through the `apypie` library to discover available API resources and actions.
 
-```bash
-rm -rf ~/.cache/apypie/*
+### Ansible troubleshooting
+
+If you see an error like:
+
+```text
+TypeError: list indices must be integers or slices, not str
 ```
 
-The service serves Apipie-compatible documentation at `/apidoc/v2.json`, which Ansible uses through the `apypie` library to discover available API resources and actions.
+when Ansible connects, the `redhat.satellite` modules are reading an outdated `/apidoc/v2.json` payload. That usually means one of two things:
+
+1. **An old container image is still running** — rebuild and restart from current `main`:
+
+   ```bash
+   podman rm -f fake-satellite
+   podman build -f Containerfile -t fake-satellite:latest .
+   podman run -d --name fake-satellite -p 8080:8080 fake-satellite:latest
+   ```
+
+2. **A stale apypie cache on the Ansible control node** — apypie caches API docs locally and reuses them without re-fetching:
+
+   ```bash
+   rm -rf ~/.cache/apypie/*
+   ```
+
+Verify the running server returns the correct apidoc shape:
+
+```bash
+curl -s http://localhost:8080/apidoc/v2.json | python3 -c "
+import json, sys
+apidoc = json.load(sys.stdin)
+docs = apidoc.get('docs')
+assert isinstance(docs, dict), f'docs should be a dict, got {type(docs).__name__}'
+assert 'resources' in docs, 'docs.resources is missing'
+assert 'home' in docs['resources'], 'home resource is missing'
+print('apidoc OK')
+"
+```
+
+If that check passes but Ansible still fails, clear the apypie cache and rerun the playbook.
 
 ## API overview
 

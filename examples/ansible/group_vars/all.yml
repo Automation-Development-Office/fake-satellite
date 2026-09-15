@@ -1,0 +1,9 @@
+---
+# Connection settings for the fake-satellite container.
+fake_satellite_server_url: "http://localhost:8080"
+fake_satellite_username: admin
+fake_satellite_password: changeme
+fake_satellite_validate_certs: false
+
+# Seed data includes this organization (see seed/satellite.yml).
+fake_satellite_organization: Engineering

@@ -1,0 +1,48 @@
+---
+- name: Exercise fake-satellite with redhat.satellite modules
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    satellite_common_args: &satellite_common_args
+      server_url: "{{ fake_satellite_server_url }}"
+      username: "{{ fake_satellite_username }}"
+      password: "{{ fake_satellite_password }}"
+      validate_certs: "{{ fake_satellite_validate_certs }}"
+
+  tasks:
+    - name: List organizations
+      redhat.satellite.organization_info:
+        <<: *satellite_common_args
+      register: organizations
+
+    - name: Show organizations returned by the API
+      ansible.builtin.debug:
+        msg: "{{ organizations.organizations | map(attribute='name') | list }}"
+
+    - name: Ensure example domain exists
+      redhat.satellite.domain:
+        <<: *satellite_common_args
+        name: lab.example.com
+        description: Lab domain managed by Ansible
+        organizations:
+          - "{{ fake_satellite_organization }}"
+        state: present
+
+    - name: Ensure content view exists
+      redhat.satellite.content_view:
+        <<: *satellite_common_args
+        organization: "{{ fake_satellite_organization }}"
+        name: RHEL8_Base
+        description: Base content view for RHEL 8 hosts
+        state: present
+
+    - name: List content views in the organization
+      redhat.satellite.content_view_info:
+        <<: *satellite_common_args
+        organization: "{{ fake_satellite_organization }}"
+      register: content_views
+
+    - name: Show content views returned by the API
+      ansible.builtin.debug:
+        msg: "{{ content_views.content_views | map(attribute='name') | list }}"
