@@ -1,0 +1,293 @@
+organizations:
+  - id: 1
+    name: Default Organization
+    title: Default Organization
+  - id: 2
+    name: Engineering
+    title: Engineering Organization
+
+locations:
+  - id: 1
+    name: Default Location
+    title: Default Location
+  - id: 2
+    name: US-East
+    title: US East Region
+  - id: 3
+    name: US-West
+    title: US West Region
+
+domains:
+  - id: 1
+    name: example.com
+    title: Example Domain
+    dns_id: 1
+    fullname: example.com
+
+subnets:
+  - id: 1
+    name: Management Network
+    title: Management Subnet
+    network: 192.168.1.0
+    mask: 255.255.255.0
+    gateway: 192.168.1.1
+    dns_primary: 8.8.8.8
+    ipam: DHCP
+    from: 192.168.1.100
+    to: 192.168.1.200
+  - id: 2
+    name: Production Network
+    title: Production Subnet
+    network: 10.0.1.0
+    mask: 255.255.255.0
+    gateway: 10.0.1.1
+    dns_primary: 8.8.8.8
+
+architectures:
+  - id: 1
+    name: x86_64
+    title: x86_64 Architecture
+  - id: 2
+    name: aarch64
+    title: ARM 64-bit Architecture
+
+operatingsystems:
+  - id: 1
+    name: AlmaLinux 9.0
+    title: AlmaLinux 9.0
+    family: Redhat
+    release_name: Nine
+    version: "9.0"
+  - id: 2
+    name: RHEL 8.7
+    title: Red Hat Enterprise Linux 8.7
+    family: Redhat
+    release_name: Ootpa
+    version: "8.7"
+  - id: 3
+    name: CentOS Stream 9
+    title: CentOS Stream 9
+    family: Redhat
+    release_name: Stream
+    version: "9"
+
+computeresources:
+  - id: 1
+    name: vSphere-Cluster1
+    title: vSphere Cluster 1
+    type: Vmware
+    url: https://vcenter.example.com
+    datacenter: dc1
+  - id: 2
+    name: KVM-Host1
+    title: KVM Host 1
+    type: Libvirt
+    url: qemu:///system
+    display_type: VNC
+
+media:
+  - id: 1
+    name: AlmaLinux-9-Latest
+    title: AlmaLinux 9 Latest
+    media_path: http://mirror.example.com/almalinux/9/latest/x86_64
+    os_family: Redhat
+  - id: 2
+    name: RHEL-8-Latest
+    title: RHEL 8 Latest
+    media_path: http://mirror.example.com/rhel/8/latest/x86_64
+    os_family: Redhat
+
+ptables:
+  - id: 1
+    name: Standard Partition Table
+    title: Standard Partition Layout
+    layout: 'part / --size 5000 --grow\npart swap --size 2000'
+  - id: 2
+    name: Large Disk Partition Table
+    title: Large Disk Layout
+    layout: 'part /boot --size 500\npart / --size 50000 --grow\npart swap --size 4000'
+
+templates:
+  - id: 1
+    name: RHEL 8 Default Provisioning
+    title: RHEL 8 Default Provisioning Template
+    template_kind: provision
+    snippet: false
+  - id: 2
+    name: Kickstart Default User Data
+    title: Kickstart Default User Data Template
+    template_kind: user_data
+    snippet: false
+  - id: 3
+    name: Global registration
+    title: Global Registration Template
+    template_kind: registration
+    snippet: false
+
+users:
+  - id: 1
+    name: admin
+    login: admin
+    email: admin@example.com
+    firstname: Admin
+    lastname: User
+    admin: true
+  - id: 2
+    name: sat_user
+    login: sat_user
+    email: sat_user@example.com
+    firstname: Satellite
+    lastname: User
+    admin: false
+
+roles:
+  - id: 1
+    name: Administrator
+    title: Administrator Role
+    builtin: true
+  - id: 2
+    name: Viewer
+    title: Viewer Role
+    builtin: true
+  - id: 3
+    name: System Administrator
+    title: System Administrator Role
+    builtin: true
+
+permissions:
+  - id: 1
+    name: view_hosts
+    display_name: View hosts
+    resource_type: Host
+  - id: 2
+    name: create_hosts
+    display_name: Create hosts
+    resource_type: Host
+  - id: 3
+    name: edit_hosts
+    display_name: Edit hosts
+    resource_type: Host
+  - id: 4
+    name: destroy_hosts
+    display_name: Delete hosts
+    resource_type: Host
+  - id: 5
+    name: view_organizations
+    display_name: View organizations
+    resource_type: Organization
+
+hostgroups:
+  - id: 1
+    name: Web Servers
+    title: Web Servers Hostgroup
+    organization_id: 1
+    location_id: 1
+  - id: 2
+    name: Database Servers
+    title: Database Servers Hostgroup
+    organization_id: 1
+    location_id: 1
+
+hosts:
+  - id: 1
+    name: web01.example.com
+    title: web01.example.com
+    hostgroup_id: 1
+    organization_id: 1
+    location_id: 1
+    ip: 192.168.1.10
+    mac: 52:54:00:12:34:01
+  - id: 2
+    name: db01.example.com
+    title: db01.example.com
+    hostgroup_id: 2
+    organization_id: 1
+    location_id: 1
+    ip: 192.168.1.20
+    mac: 52:54:00:12:34:02
+
+lifecycle_environments:
+  - id: 1
+    name: Library
+    description: Default lifecycle environment
+    organization_id: 1
+  - id: 2
+    name: Development
+    description: Development environment
+    organization_id: 1
+    prior_id: 1
+  - id: 3
+    name: Production
+    description: Production environment
+    organization_id: 1
+    prior_id: 2
+
+environments:
+  - id: 1
+    name: Library
+    title: Library Environment
+    organization_id: 1
+  - id: 2
+    name: Dev
+    title: Development Environment
+    organization_id: 1
+  - id: 3
+    name: Prod
+    title: Production Environment
+    organization_id: 1
+
+content_views:
+  - id: 1
+    name: Base Content View
+    title: Base Content View
+    organization_id: 1
+    description: Base content view with core packages
+  - id: 2
+    name: Web Server CV
+    title: Web Server Content View
+    organization_id: 1
+    description: Content view for web servers
+
+products:
+  - id: 1
+    name: Red Hat Enterprise Linux
+    title: Red Hat Enterprise Linux
+    organization_id: 1
+    description: RHEL product
+  - id: 2
+    name: CentOS Stream
+    title: CentOS Stream
+    organization_id: 1
+    description: CentOS Stream product
+
+repositories:
+  - id: 1
+    name: RHEL 8 AppStream
+    title: RHEL 8 AppStream Repository
+    product_id: 1
+    organization_id: 1
+    content_type: yum
+    url: http://mirror.example.com/rhel/8/appstream
+  - id: 2
+    name: CentOS Stream 9 AppStream
+    title: CentOS Stream 9 AppStream Repository
+    product_id: 2
+    organization_id: 1
+    content_type: yum
+    url: http://mirror.example.com/centos-stream/9/appstream
+
+activation_keys:
+  - id: 1
+    name: Default Activation Key
+    title: Default Activation Key
+    organization_id: 1
+    content_view_id: 1
+    lifecycle_environment_id: 1
+  - id: 2
+    name: Web Server Key
+    title: Web Server Activation Key
+    organization_id: 1
+    content_view_id: 2
+    lifecycle_environment_id: 3
+
+tasks: []
