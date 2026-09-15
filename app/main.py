@@ -11,6 +11,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from app.apidoc import build_apidoc
+
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -824,131 +826,10 @@ def sync_product(product_id: int):
 @app.get("/apidoc/v2.json")
 def api_documentation():
     """
-    Minimal Apipie-compatible response.
-
-    This is intentionally small. As we discover additional endpoints
-    required by the Ansible modules, this can be expanded.
+    Apipie-compatible API documentation consumed by Ansible's apypie client.
     """
 
-    return {
-        "docs": [
-            # Foreman - Core
-            {
-                "name": "organizations",
-                "full_name": "Organizations",
-                "path": "/api/organizations",
-            },
-            {
-                "name": "locations",
-                "full_name": "Locations",
-                "path": "/api/locations",
-            },
-            {
-                "name": "hostgroups",
-                "full_name": "Hostgroups",
-                "path": "/api/hostgroups",
-            },
-            {
-                "name": "hosts",
-                "full_name": "Hosts",
-                "path": "/api/hosts",
-            },
-            # Foreman - Infrastructure
-            {
-                "name": "domains",
-                "full_name": "Domains",
-                "path": "/api/domains",
-            },
-            {
-                "name": "subnets",
-                "full_name": "Subnets",
-                "path": "/api/subnets",
-            },
-            {
-                "name": "computeresources",
-                "full_name": "Compute Resources",
-                "path": "/api/computeresources",
-            },
-            {
-                "name": "architectures",
-                "full_name": "Architectures",
-                "path": "/api/architectures",
-            },
-            {
-                "name": "operatingsystems",
-                "full_name": "Operating Systems",
-                "path": "/api/operatingsystems",
-            },
-            {
-                "name": "media",
-                "full_name": "Installation Media",
-                "path": "/api/media",
-            },
-            {
-                "name": "ptables",
-                "full_name": "Partition Tables",
-                "path": "/api/ptables",
-            },
-            {
-                "name": "templates",
-                "full_name": "Provisioning Templates",
-                "path": "/api/templates",
-            },
-            # Foreman - Users & Permissions
-            {
-                "name": "users",
-                "full_name": "Users",
-                "path": "/api/users",
-            },
-            {
-                "name": "roles",
-                "full_name": "Roles",
-                "path": "/api/roles",
-            },
-            {
-                "name": "permissions",
-                "full_name": "Permissions",
-                "path": "/api/permissions",
-            },
-            # Katello - Content Management
-            {
-                "name": "lifecycle_environments",
-                "full_name": "Lifecycle Environments",
-                "path": "/katello/api/lifecycle_environments",
-            },
-            {
-                "name": "content_views",
-                "full_name": "Content Views",
-                "path": "/katello/api/content_views",
-            },
-            {
-                "name": "activation_keys",
-                "full_name": "Activation Keys",
-                "path": "/katello/api/activation_keys",
-            },
-            {
-                "name": "repositories",
-                "full_name": "Repositories",
-                "path": "/katello/api/repositories",
-            },
-            {
-                "name": "products",
-                "full_name": "Products",
-                "path": "/katello/api/products",
-            },
-            {
-                "name": "environments",
-                "full_name": "Environments",
-                "path": "/katello/api/environments",
-            },
-            # Tasks
-            {
-                "name": "tasks",
-                "full_name": "Tasks",
-                "path": "/api/tasks",
-            },
-        ]
-    }
+    return build_apidoc()
 
 
 # ---------------------------------------------------------------------------

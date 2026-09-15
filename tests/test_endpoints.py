@@ -22,6 +22,44 @@ class FakeSatelliteTester:
         self.passed = 0
         self.failed = 0
     
+    def _test_apidoc_structure(self):
+        """Ensure /apidoc/v2.json matches what apypie expects."""
+        try:
+            import apypie
+        except ImportError:
+            print("  ⊘ Apidoc structure test skipped (apypie not installed)")
+            return
+
+        response = requests.get(f"{self.base_url}/apidoc/v2.json", timeout=5)
+        apidoc = response.json()
+        resources = apidoc["docs"]["resources"]
+
+        required_resources = ("home", "organizations", "subscriptions")
+        for resource in required_resources:
+            if resource not in resources:
+                self.failed += 1
+                print(f"  ✗ Apidoc missing resource: {resource}")
+                return
+
+        api = apypie.Api(uri=self.base_url, api_version=2)
+        api._apidoc = apidoc
+
+        home_actions = api.resource("home").actions
+        if "status" not in home_actions:
+            self.failed += 1
+            print("  ✗ Apidoc home resource missing status action")
+            return
+
+        org_actions = api.resource("organizations").actions
+        for action in ("index", "show", "create", "update", "destroy"):
+            if action not in org_actions:
+                self.failed += 1
+                print(f"  ✗ Apidoc organizations missing action: {action}")
+                return
+
+        self.passed += 1
+        print("  ✓ [200] Apidoc structure is apypie-compatible")
+
     def test_health_checks(self):
         """Test basic health check endpoints."""
         print("\n" + "=" * 70)
@@ -51,6 +89,8 @@ class FakeSatelliteTester:
             expected_status=200,
             description="API Documentation"
         )
+
+        self._test_apidoc_structure()
     
     def test_list_endpoints(self):
         """Test list endpoints for all resources."""
