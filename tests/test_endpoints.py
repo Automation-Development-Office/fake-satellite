@@ -34,7 +34,13 @@ class FakeSatelliteTester:
         apidoc = response.json()
         resources = apidoc["docs"]["resources"]
 
-        required_resources = ("home", "organizations", "subscriptions")
+        required_resources = (
+            "home",
+            "organizations",
+            "subscriptions",
+            "content_views",
+            "content_view_versions",
+        )
         for resource in required_resources:
             if resource not in resources:
                 self.failed += 1
@@ -56,6 +62,25 @@ class FakeSatelliteTester:
                 self.failed += 1
                 print(f"  ✗ Apidoc organizations missing action: {action}")
                 return
+
+        cv_version_actions = api.resource("content_view_versions").actions
+        for action in ("index", "show", "create", "update", "destroy", "promote"):
+            if action not in cv_version_actions:
+                self.failed += 1
+                print(f"  ✗ Apidoc content_view_versions missing action: {action}")
+                return
+
+        cv_actions = api.resource("content_views").actions
+        if "publish" not in cv_actions:
+            self.failed += 1
+            print("  ✗ Apidoc content_views missing publish action")
+            return
+
+        status_response = requests.get(f"{self.base_url}/api/status", timeout=5)
+        if "apipie-checksum" not in status_response.headers:
+            self.failed += 1
+            print("  ✗ /api/status missing apipie-checksum header")
+            return
 
         self.passed += 1
         print("  ✓ [200] Apidoc structure is apypie-compatible")

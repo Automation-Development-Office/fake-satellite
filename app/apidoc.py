@@ -11,7 +11,11 @@ and validate API calls.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Any
+
+_APIDOC_CHECKSUM: str | None = None
 
 
 FOREMAN_RESOURCES = (
@@ -339,3 +343,13 @@ def build_apidoc() -> dict[str, Any]:
             "resources": resources,
         },
     }
+
+
+def apidoc_checksum() -> str:
+    """Stable checksum used to invalidate stale apypie apidoc caches."""
+
+    global _APIDOC_CHECKSUM
+    if _APIDOC_CHECKSUM is None:
+        payload = json.dumps(build_apidoc(), sort_keys=True, separators=(",", ":"))
+        _APIDOC_CHECKSUM = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+    return _APIDOC_CHECKSUM

@@ -195,6 +195,24 @@ print('apidoc OK')
 
 If that check passes but Ansible still fails, clear the apypie cache and rerun the playbook.
 
+If you see `The server doesn't know about content_view_versions`, the control node is using a stale apidoc cache or an old container image. Rebuild fake-satellite, then run:
+
+```bash
+rm -rf ~/.cache/apypie/*
+```
+
+Verify the resource is present:
+
+```bash
+curl -s http://localhost:8080/apidoc/v2.json | python3 -c "
+import json,sys
+resources=json.load(sys.stdin)['docs']['resources']
+print('content_view_versions' in resources)
+"
+```
+
+Current images also return an `apipie-checksum` response header so apypie can invalidate outdated caches automatically after the first API call.
+
 ## API overview
 
 | Endpoint | Description |

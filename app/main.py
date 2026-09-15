@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.apidoc import build_apidoc
+from app.apidoc import apidoc_checksum, build_apidoc
 from app.compatibility import apply_read_aliases, normalize_write_payload
 from app.katello import next_content_view_version, promote_response, publish_response
 from app.resource_defaults import enrich_resource
@@ -553,6 +553,9 @@ async def log_requests(request: Request, call_next):
             pass
 
     response = await call_next(request)
+
+    if request.url.path.startswith(("/api/", "/katello/api/")):
+        response.headers["apipie-checksum"] = apidoc_checksum()
 
     logger.info(
         "Response: %s",
