@@ -35,6 +35,11 @@ FOREMAN_RESOURCES = (
     "roles",
     "permissions",
     "tasks",
+    "remote_execution_features",
+)
+
+SPECIAL_FOREMAN_RESOURCES = (
+    "registration_commands",
 )
 
 KATELLO_RESOURCES = (
@@ -66,6 +71,8 @@ SINGULAR_NAMES = {
     "roles": "role",
     "permissions": "permission",
     "tasks": "task",
+    "remote_execution_features": "remote_execution_feature",
+    "registration_commands": "registration_command",
     "lifecycle_environments": "lifecycle_environment",
     "content_views": "content_view",
     "content_view_versions": "content_view_version",
@@ -317,6 +324,52 @@ def _resource_path(resource: str) -> str:
     return f"/api/{resource}"
 
 
+def _registration_command_params() -> list[dict[str, Any]]:
+    command_fields = [
+        _param("organization_id", expected_type="numeric"),
+        _param("location_id", expected_type="numeric"),
+        _param("hostgroup_id", expected_type="numeric"),
+        _param("operatingsystem_id", expected_type="numeric"),
+        _param("smart_proxy_id", expected_type="numeric"),
+        _param("setup_insights", expected_type="boolean"),
+        _param("setup_remote_execution", expected_type="boolean"),
+        _param("setup_remote_execution_pull", expected_type="boolean"),
+        _param("jwt_expiration", expected_type="numeric"),
+        _param("insecure", expected_type="boolean"),
+        _param("packages"),
+        _param("update_packages", expected_type="boolean"),
+        _param("repo"),
+        _param("repo_gpg_key_url"),
+        _param("force", expected_type="boolean"),
+        _param("ignore_subman_errors", expected_type="boolean"),
+        _param("activation_keys", expected_type="array"),
+        _param("lifecycle_environment_id", expected_type="numeric"),
+        _param("remote_execution_interface"),
+    ]
+    return [
+        _param("organization_id", expected_type="numeric"),
+        _param("location_id", expected_type="numeric"),
+        _param(
+            "registration_command",
+            expected_type="hash",
+            params=command_fields,
+        ),
+        *command_fields,
+    ]
+
+
+def _registration_commands_methods() -> list[dict[str, Any]]:
+    return [
+        _method(
+            "create",
+            "/api/registration_commands",
+            "POST",
+            _registration_command_params(),
+            "Generate a global registration command",
+        ),
+    ]
+
+
 def build_apidoc() -> dict[str, Any]:
     resources: dict[str, dict[str, Any]] = {
         "home": {
@@ -335,6 +388,10 @@ def build_apidoc() -> dict[str, Any]:
         resources[resource] = {
             "methods": _crud_methods(resource, _resource_path(resource)),
         }
+
+    for resource in SPECIAL_FOREMAN_RESOURCES:
+        if resource == "registration_commands":
+            resources[resource] = {"methods": _registration_commands_methods()}
 
     return {
         "docs": {

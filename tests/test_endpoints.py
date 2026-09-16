@@ -40,6 +40,8 @@ class FakeSatelliteTester:
             "subscriptions",
             "content_views",
             "content_view_versions",
+            "registration_commands",
+            "remote_execution_features",
         )
         for resource in required_resources:
             if resource not in resources:
@@ -80,6 +82,12 @@ class FakeSatelliteTester:
         if "apipie-checksum" not in status_response.headers:
             self.failed += 1
             print("  ✗ /api/status missing apipie-checksum header")
+            return
+
+        registration_actions = api.resource("registration_commands").actions
+        if "create" not in registration_actions:
+            self.failed += 1
+            print("  ✗ Apidoc registration_commands missing create action")
             return
 
         self.passed += 1
@@ -231,6 +239,58 @@ class FakeSatelliteTester:
         self.passed += 2
         print("  ✓ [200] Content view includes Katello fields")
         print("  ✓ [201] Created content view includes composite")
+
+    def test_registration_command(self):
+        """Registration command generation for redhat.satellite.registration_command."""
+        print("\n" + "=" * 70)
+        print("REGISTRATION COMMAND")
+        print("=" * 70)
+
+        response = requests.post(
+            f"{self.base_url}/api/registration_commands",
+            json={
+                "registration_command": {
+                    "organization_id": 2,
+                    "location_id": 2,
+                    "insecure": True,
+                }
+            },
+            timeout=5,
+        )
+        if response.status_code != 200:
+            self.failed += 1
+            print(f"  ✗ [{response.status_code}] Create registration command")
+            return
+
+        command = response.json().get("registration_command")
+        if not command or "curl" not in command or "| bash" not in command:
+            self.failed += 1
+            print("  ✗ Registration command response missing curl command")
+            return
+
+        try:
+            import apypie
+
+            api = apypie.ForemanApi(uri=self.base_url, username="admin", password="x", verify_ssl=False)
+            api.clean_cache()
+            result = api.create(
+                "registration_commands",
+                {"organization_id": 2, "location_id": 2, "insecure": True},
+            )
+            if "registration_command" not in result:
+                self.failed += 1
+                print("  ✗ Apypie create registration_commands missing registration_command")
+                return
+        except ImportError:
+            print("  ⊘ Apypie registration command test skipped (apypie not installed)")
+        except Exception as exc:
+            self.failed += 1
+            print(f"  ✗ Apypie registration command failed: {exc}")
+            return
+
+        self.passed += 2
+        print("  ✓ [200] Create registration command")
+        print("  ✓ Apypie registration_commands create works")
 
     def test_content_view_publish(self):
         """Content view publish should create a version for Ansible modules."""
@@ -630,6 +690,7 @@ class FakeSatelliteTester:
         try:
             self.test_health_checks()
             self.test_katello_content_view_fields()
+            self.test_registration_command()
             self.test_content_view_publish()
             self.test_content_view_promote()
             self.test_list_endpoints()

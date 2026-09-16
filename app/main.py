@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from app.apidoc import apidoc_checksum, build_apidoc
 from app.compatibility import apply_read_aliases, normalize_write_payload
 from app.katello import next_content_view_version, promote_response, publish_response
+from app.registration import generate_registration_command
 from app.resource_defaults import enrich_resource
 
 
@@ -837,16 +838,39 @@ def add_host_to_location(location_id: int, host_id: int):
     return {"status": "ok"}
 
 
-# ---------------------------------------------------------------------------
-# Content view publish / promote endpoints
-# ---------------------------------------------------------------------------
-
 async def _json_body(request: Request) -> dict:
     try:
         body = await request.json()
     except json.JSONDecodeError:
         body = {}
     return body if isinstance(body, dict) else {}
+
+
+# ---------------------------------------------------------------------------
+# Registration command endpoint
+# ---------------------------------------------------------------------------
+
+@app.post("/api/registration_commands")
+async def create_registration_command(request: Request):
+    """Generate a fake host registration command for Ansible testing."""
+    body = await _json_body(request)
+    base_url = f"{request.url.scheme}://{request.headers.get('host', request.url.netloc)}"
+    return generate_registration_command(base_url, body)
+
+
+@app.get("/register")
+def registration_endpoint():
+    """Minimal registration endpoint referenced by generated commands."""
+
+    return {
+        "status": "ok",
+        "message": "fake-satellite registration endpoint",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Content view publish / promote endpoints
+# ---------------------------------------------------------------------------
 
 
 @app.post("/katello/api/content_views/{content_view_id}/publish")
