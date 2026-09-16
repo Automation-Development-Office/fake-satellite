@@ -288,9 +288,30 @@ class FakeSatelliteTester:
             print(f"  ✗ Apypie registration command failed: {exc}")
             return
 
-        self.passed += 2
+        register_response = requests.get(
+            f"{self.base_url}/register",
+            params={
+                "organization_id": 2,
+                "activation_keys": "Default Activation Key",
+                "force": "True",
+            },
+            timeout=5,
+        )
+        if register_response.status_code != 200:
+            self.failed += 1
+            print(f"  ✗ [{register_response.status_code}] GET /register")
+            return
+
+        script = register_response.text
+        if "#!/bin/bash" not in script or "fake-satellite" not in script:
+            self.failed += 1
+            print("  ✗ GET /register did not return a shell script")
+            return
+
+        self.passed += 3
         print("  ✓ [200] Create registration command")
         print("  ✓ Apypie registration_commands create works")
+        print("  ✓ [200] GET /register returns registration script")
 
     def test_content_view_publish(self):
         """Content view publish should create a version for Ansible modules."""

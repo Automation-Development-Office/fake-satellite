@@ -8,13 +8,13 @@ from typing import Any
 
 import yaml
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 
 from app.apidoc import apidoc_checksum, build_apidoc
 from app.compatibility import apply_read_aliases, normalize_write_payload
 from app.katello import next_content_view_version, promote_response, publish_response
-from app.registration import generate_registration_command
+from app.registration import generate_registration_command, generate_registration_script
 from app.resource_defaults import enrich_resource
 
 
@@ -858,14 +858,17 @@ async def create_registration_command(request: Request):
     return generate_registration_command(base_url, body)
 
 
-@app.get("/register")
-def registration_endpoint():
-    """Minimal registration endpoint referenced by generated commands."""
-
-    return {
-        "status": "ok",
-        "message": "fake-satellite registration endpoint",
-    }
+@app.api_route("/register", methods=["GET", "POST"])
+async def registration_endpoint(request: Request):
+    """Render a fake global registration script for curl | bash workflows."""
+    params = dict(request.query_params)
+    if request.method == "POST":
+        body = await _json_body(request)
+        params.update(body)
+    return PlainTextResponse(
+        generate_registration_script(params),
+        media_type="text/plain",
+    )
 
 
 # ---------------------------------------------------------------------------
