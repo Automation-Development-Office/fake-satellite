@@ -18,13 +18,21 @@ This directory contains a sample playbook that runs against a local fake-satelli
    ansible-galaxy collection install -r requirements.yml
    ```
 
-## Run the playbook
+## Run the playbooks
 
 From this directory:
 
 ```bash
 ansible-playbook -i inventory.yml site.yml
 ```
+
+To exercise the `infra.ado.rhel_sat_reg` register/deregister Satellite API flow:
+
+```bash
+ansible-playbook -i inventory.yml rhel_sat_reg.yml
+```
+
+That playbook registers a host via `registration_command` and `/register`, then deletes it with `redhat.satellite.host` (`state: absent`), matching the Satellite API steps in the ADO role's deregister task file.
 
 Override connection settings without editing files:
 

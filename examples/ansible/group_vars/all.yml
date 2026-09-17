@@ -7,6 +7,7 @@ fake_satellite_validate_certs: false
 
 # Seed data includes this organization (see seed/satellite.yml).
 fake_satellite_organization: Engineering
+fake_satellite_activation_key: Default Activation Key
 
 # Legacy variable names used by older redhat.satellite roles and playbooks.
 satellite_server_url: "{{ fake_satellite_server_url }}"

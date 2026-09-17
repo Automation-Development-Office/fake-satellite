@@ -1,0 +1,77 @@
+---
+# Exercise infra.ado.rhel_sat_reg register/deregister flows against fake-satellite.
+#
+# Register: registration_command -> curl | bash (creates host in fake-satellite)
+# Deregister: redhat.satellite.host state=absent (deletes host from fake-satellite)
+#
+# Local subscription-manager steps in the ADO role are skipped here because they
+# require a real RHEL host. Use this playbook to validate the Satellite API side.
+
+- name: Register host with fake-satellite
+  hosts: localhost
+  gather_facts: true
+  vars:
+    satellite_common_args: &satellite_common_args
+      server_url: "{{ satellite_server_url | default(fake_satellite_server_url) }}"
+      username: "{{ satellite_username | default(fake_satellite_username) }}"
+      password: "{{ satellite_password | default(fake_satellite_password) }}"
+      validate_certs: "{{ satellite_validate_certs | default(fake_satellite_validate_certs) }}"
+    satellite_organization_name: "{{ satellite_organization | default(fake_satellite_organization) }}"
+    fake_satellite_activation_key: Default Activation Key
+    test_host_fqdn: "{{ ansible_fqdn | default(inventory_hostname) }}"
+
+  tasks:
+    - name: Generate registration command
+      redhat.satellite.registration_command:
+        <<: *satellite_common_args
+        organization: "{{ satellite_organization_name }}"
+        activation_keys:
+          - "{{ fake_satellite_activation_key }}"
+        force: true
+        insecure: "{{ not (satellite_validate_certs | default(fake_satellite_validate_certs) | bool) }}"
+        setup_insights: false
+        update_packages: false
+      register: registration_command
+
+    - name: Register host via generated script
+      ansible.builtin.shell: "HOSTNAME={{ test_host_fqdn }} {{ registration_command.registration_command }}"
+      register: registration_result
+      changed_when: "'system has been registered' in registration_result.stdout | lower"
+      failed_when: >-
+        registration_result.rc != 0
+        and ('already registered' not in registration_result.stderr | lower)
+
+    - name: Confirm host exists in Satellite
+      redhat.satellite.host_info:
+        <<: *satellite_common_args
+        name: "{{ test_host_fqdn }}"
+      register: registered_host
+
+    - name: Show registered host
+      ansible.builtin.debug:
+        msg: "Registered host id={{ registered_host.host.id }} name={{ registered_host.host.name }}"
+
+- name: Deregister host from fake-satellite
+  hosts: localhost
+  gather_facts: true
+  vars:
+    satellite_common_args: &satellite_common_args
+      server_url: "{{ satellite_server_url | default(fake_satellite_server_url) }}"
+      username: "{{ satellite_username | default(fake_satellite_username) }}"
+      password: "{{ satellite_password | default(fake_satellite_password) }}"
+      validate_certs: "{{ satellite_validate_certs | default(fake_satellite_validate_certs) }}"
+    test_host_fqdn: "{{ ansible_fqdn | default(inventory_hostname) }}"
+
+  tasks:
+    - name: Delete host from Satellite (ADO deregister API step)
+      redhat.satellite.host:
+        <<: *satellite_common_args
+        name: "{{ test_host_fqdn }}"
+        state: absent
+
+    - name: Confirm host was removed
+      redhat.satellite.host_info:
+        <<: *satellite_common_args
+        name: "{{ test_host_fqdn }}"
+      register: host_lookup
+      failed_when: host_lookup.host is defined

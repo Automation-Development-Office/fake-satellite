@@ -33,16 +33,50 @@ def generate_registration_command(base_url: str, body: dict[str, Any]) -> dict[s
     return {"registration_command": command}
 
 
-def generate_registration_script(params: dict[str, Any]) -> str:
+def _optional_host_json_fields(params: dict[str, Any]) -> str:
+    fields: list[str] = []
+    for key in ("organization_id", "location_id"):
+        value = params.get(key)
+        if value not in (None, ""):
+            fields.append(f'\\"{key}\\": {int(value)}')
+    return ", ".join(fields)
+
+
+def generate_registration_script(base_url: str, params: dict[str, Any]) -> str:
     """Return a shell script for the /register endpoint (piped to bash)."""
-    org_id = params.get("organization_id", "")
-    location_id = params.get("location_id", "")
-    activation_keys = params.get("activation_keys", "")
+    api_url = f"{base_url.rstrip('/')}/api/hosts"
+    extra_fields = _optional_host_json_fields(params)
+    extra = f", {extra_fields}" if extra_fields else ""
+    payload = '{\\"host\\":{\\"name\\":\\"${HOSTNAME}\\"' + extra + "}}"
+
+    lines = [
+        "#!/bin/bash",
+        "set -euo pipefail",
+        'HOSTNAME="${HOSTNAME:-$(hostname -f 2>/dev/null || hostname)}"',
+        f"HTTP_CODE=$(curl -sS -o /dev/null -w '%{{http_code}}' -X POST '{api_url}' \\",
+        "  -H 'Content-Type: application/json' \\",
+        f'  -d "{payload}")',
+        'if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "422" ]; then',
+        '  echo "The system has been registered."',
+        "  exit 0",
+        "fi",
+        'echo "Registration failed with HTTP $HTTP_CODE" >&2',
+        "exit 1",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def generate_unregister_script(base_url: str, params: dict[str, Any]) -> str:
+    """Return a shell script for the /unregister endpoint (piped to bash)."""
+    api_url = f"{base_url.rstrip('/')}/api/hosts/unregister"
+
     return (
         "#!/bin/bash\n"
         "set -euo pipefail\n"
-        "echo \"fake-satellite: host registration complete\"\n"
-        f"echo \"  organization_id={org_id}\"\n"
-        f"echo \"  location_id={location_id}\"\n"
-        f"echo \"  activation_keys={activation_keys}\"\n"
+        'HOSTNAME="${HOSTNAME:-$(hostname -f 2>/dev/null || hostname)}"\n'
+        f"curl -sS -X POST '{api_url}' \\\n"
+        "  -H 'Content-Type: application/json' \\\n"
+        '  -d "{\\"name\\":\\"${HOSTNAME}\\"}"\n'
+        'echo "System has been unregistered."\n'
+        'echo "All local data removed."\n'
     )

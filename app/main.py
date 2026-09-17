@@ -14,7 +14,11 @@ from pydantic import BaseModel
 from app.apidoc import apidoc_checksum, build_apidoc
 from app.compatibility import apply_read_aliases, normalize_write_payload
 from app.katello import next_content_view_version, promote_response, publish_response
-from app.registration import generate_registration_command, generate_registration_script
+from app.registration import (
+    generate_registration_command,
+    generate_registration_script,
+    generate_unregister_script,
+)
 from app.resource_defaults import enrich_resource
 
 
@@ -529,6 +533,24 @@ def delete_resource(resource, resource_id):
     conn.close()
 
 
+def find_host_by_name(hostname: str) -> dict[str, Any] | None:
+    results = list_resources(
+        "hosts",
+        search=f'name="{hostname}"',
+        per_page=1,
+    )["results"]
+    return results[0] if results else None
+
+
+def unregister_host_record(hostname: str) -> bool:
+    host = find_host_by_name(hostname)
+    if not host:
+        return False
+
+    delete_resource("hosts", host["id"])
+    return True
+
+
 # ---------------------------------------------------------------------------
 # Request logging
 # ---------------------------------------------------------------------------
@@ -865,8 +887,41 @@ async def registration_endpoint(request: Request):
     if request.method == "POST":
         body = await _json_body(request)
         params.update(body)
+    base_url = f"{request.url.scheme}://{request.headers.get('host', request.url.netloc)}"
     return PlainTextResponse(
-        generate_registration_script(params),
+        generate_registration_script(base_url, params),
+        media_type="text/plain",
+    )
+
+
+@app.post("/api/hosts/unregister")
+async def unregister_host_endpoint(request: Request):
+    """Remove a host by FQDN for unregister scripts and testing."""
+    body = await _json_body(request)
+    hostname = body.get("name")
+    if not hostname and isinstance(body.get("host"), dict):
+        hostname = body["host"].get("name")
+    if not hostname:
+        raise HTTPException(status_code=400, detail="name is required")
+
+    deleted = unregister_host_record(hostname)
+    return {
+        "status": "ok",
+        "deleted": deleted,
+        "name": hostname,
+    }
+
+
+@app.api_route("/unregister", methods=["GET", "POST"])
+async def unregistration_endpoint(request: Request):
+    """Render a fake unregister script compatible with infra.ado.rhel_sat_reg."""
+    params = dict(request.query_params)
+    if request.method == "POST":
+        body = await _json_body(request)
+        params.update(body)
+    base_url = f"{request.url.scheme}://{request.headers.get('host', request.url.netloc)}"
+    return PlainTextResponse(
+        generate_unregister_script(base_url, params),
         media_type="text/plain",
     )
 

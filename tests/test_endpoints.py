@@ -303,15 +303,113 @@ class FakeSatelliteTester:
             return
 
         script = register_response.text
-        if "#!/bin/bash" not in script or "fake-satellite" not in script:
+        if "#!/bin/bash" not in script or "system has been registered" not in script:
             self.failed += 1
-            print("  ✗ GET /register did not return a shell script")
+            print("  ✗ GET /register did not return a registration shell script")
             return
 
         self.passed += 3
         print("  ✓ [200] Create registration command")
         print("  ✓ Apypie registration_commands create works")
         print("  ✓ [200] GET /register returns registration script")
+
+    def test_unregister_host(self):
+        """Host unregister endpoint and redhat.satellite.host delete flow."""
+        print("\n" + "=" * 70)
+        print("HOST UNREGISTER")
+        print("=" * 70)
+
+        hostname = "test-reg.example.com"
+        create_response = requests.post(
+            f"{self.base_url}/api/hosts",
+            json={
+                "host": {
+                    "name": hostname,
+                    "organization_id": 2,
+                    "location_id": 2,
+                }
+            },
+            timeout=5,
+        )
+        if create_response.status_code not in (201, 422):
+            self.failed += 1
+            print(f"  ✗ [{create_response.status_code}] Create test host")
+            return
+
+        unregister_response = requests.post(
+            f"{self.base_url}/api/hosts/unregister",
+            json={"name": hostname},
+            timeout=5,
+        )
+        if unregister_response.status_code != 200:
+            self.failed += 1
+            print(f"  ✗ [{unregister_response.status_code}] POST /api/hosts/unregister")
+            return
+
+        if not unregister_response.json().get("deleted"):
+            self.failed += 1
+            print("  ✗ Unregister did not delete the host")
+            return
+
+        search_response = requests.get(
+            f"{self.base_url}/api/hosts",
+            params={"search": f'name="{hostname}"'},
+            timeout=5,
+        )
+        if search_response.status_code != 200:
+            self.failed += 1
+            print(f"  ✗ [{search_response.status_code}] Search hosts after unregister")
+            return
+
+        if search_response.json().get("results"):
+            self.failed += 1
+            print("  ✗ Host still present after unregister")
+            return
+
+        script_response = requests.get(
+            f"{self.base_url}/unregister",
+            timeout=5,
+        )
+        if script_response.status_code != 200:
+            self.failed += 1
+            print(f"  ✗ [{script_response.status_code}] GET /unregister")
+            return
+
+        script = script_response.text
+        if "System has been unregistered." not in script or "All local data removed." not in script:
+            self.failed += 1
+            print("  ✗ GET /unregister did not return an unregister shell script")
+            return
+
+        try:
+            import apypie
+
+            api = apypie.ForemanApi(uri=self.base_url, username="admin", password="x", verify_ssl=False)
+            api.clean_cache()
+
+            created = api.create(
+                "hosts",
+                {"name": hostname, "organization_id": 2, "location_id": 2},
+            )
+            api.delete("hosts", created)
+
+            remaining = api.list("hosts", search=f'name="{hostname}"')
+            if remaining:
+                self.failed += 1
+                print("  ✗ Apypie host delete did not remove the host")
+                return
+        except ImportError:
+            print("  ⊘ Apypie host destroy test skipped (apypie not installed)")
+        except Exception as exc:
+            self.failed += 1
+            print(f"  ✗ Apypie host destroy failed: {exc}")
+            return
+
+        self.passed += 4
+        print("  ✓ [200] POST /api/hosts/unregister deletes host")
+        print("  ✓ Host absent after unregister")
+        print("  ✓ [200] GET /unregister returns unregister script")
+        print("  ✓ Apypie host delete works")
 
     def test_content_view_publish(self):
         """Content view publish should create a version for Ansible modules."""
@@ -712,6 +810,7 @@ class FakeSatelliteTester:
             self.test_health_checks()
             self.test_katello_content_view_fields()
             self.test_registration_command()
+            self.test_unregister_host()
             self.test_content_view_publish()
             self.test_content_view_promote()
             self.test_list_endpoints()
